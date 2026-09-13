@@ -26,7 +26,7 @@ async function groqChat(messages, systemPrompt, maxTokens = 2048) {
     return '⚠️ AI service not configured. Please add GROQ_API_KEY to your .env file.';
   }
 
-  const models = ['openai/gpt-oss-20b', 'qwen/qwen3.6-27b', 'openai/gpt-oss-120b'];
+  const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
   let lastError = null;
 
   for (const model of models) {
