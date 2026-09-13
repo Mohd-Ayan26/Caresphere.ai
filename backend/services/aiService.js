@@ -26,7 +26,7 @@ async function groqChat(messages, systemPrompt, maxTokens = 2048) {
     return '⚠️ AI service not configured. Please add GROQ_API_KEY to your .env file.';
   }
 
-  const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'];
+  const models = ['openai/gpt-oss-20b', 'qwen/qwen3.6-27b', 'openai/gpt-oss-120b'];
   let lastError = null;
 
   for (const model of models) {
@@ -208,116 +208,55 @@ Return ONLY raw valid JSON matching this schema (no markdown formatting, single 
 exports.parsePrescriptionWithGroq = async (rawText, imagePath) => {
   let textToParse = rawText || '';
   let ocrText = '';
-  let base64Image = null;
-
-  // Read image as Base64 for Groq Vision AI
   if (imagePath && fs.existsSync(imagePath)) {
-    try {
-      const fileBuf = fs.readFileSync(imagePath);
-      base64Image = fileBuf.toString('base64');
-    } catch (e) {
-      console.error('Image base64 conversion error:', e.message);
-    }
-
-    // Secondary fallback: local OCR
+    console.log('Performing local OCR on prescription image:', imagePath);
     ocrText = await performLocalOCR(imagePath);
+    console.log('Prescription OCR Extracted Text Length:', ocrText.length);
     if (ocrText && ocrText.trim().length > 5) {
       textToParse = (rawText ? rawText + '\n' : '') + ocrText;
     }
   }
 
-  const prompt = `You are an expert clinical pharmacist. Examine this prescription or pharmacy bill image/text and extract ALL distinct medicine items.
-Return ONLY valid raw JSON matching this schema (no markdown block, no extra text):
+  const prompt = `Extract ALL distinct medicine items from this medical store bill or prescription text.
+Return ONLY valid JSON matching this exact schema (no markdown block, no extra text, raw JSON only):
 {
   "medicines": [
     {
-      "name": "Exact medicine name e.g. Pantocid DSR, Calpol 500mg, Isofeel, Azee 500mg",
+      "name": "Exact medicine name e.g. Pantocid DSR, Calpol 500mg, Azee 500mg, Amoxyclav 625, Telma 40, Augmentin 625mg",
       "dosage": "500",
       "unit": "tablets|capsules|mg|ml|grams",
       "frequency": "once daily|twice daily|thrice daily|every 8 hours|at bedtime",
       "times": ["08:00"],
       "duration": "30 days",
       "instructions": "Take after meals",
-      "uses": "Concise medical indications e.g. Used for severe acne and skin treatment",
-      "negativeSymptoms": "Concise side effects e.g. May cause dry skin, dry lips, or mild itching"
+      "uses": "Primary medical use",
+      "negativeSymptoms": "Potential side effects"
     }
   ]
-}`;
+}
+
+Bill / Prescription Text:
+${textToParse}`;
 
   let finalMedicines = [];
-
   try {
-    const apiKey = process.env.GROQ_API_KEY || GROQ_API_KEY;
-
-    // Use Groq Vision model if image is available, otherwise standard Groq model
-    if (base64Image) {
-      const response = await axios.post(
-        `${GROQ_BASE}/chat/completions`,
-        {
-          model: 'llama-3.2-11b-vision-preview',
-          max_tokens: 2048,
-          temperature: 0.2,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                {
-                  type: 'image_url',
-                  image_url: { url: `data:image/jpeg;base64,${base64Image}` },
-                },
-              ],
-            },
-          ],
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
-        }
-      );
-
-      const text = response.data.choices[0].message.content;
-      const cleanedText = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(cleanedText);
-      if (parsed.medicines?.length) finalMedicines = parsed.medicines;
-    }
-  } catch (visionErr) {
-    console.error('Groq Vision scan error, falling back to text parsing:', visionErr.response?.data?.error?.message || visionErr.message);
+    const text = await groqChat([{ role: 'user', content: prompt }], 'Expert clinical pharmacist AI. Return raw JSON only.', 4096);
+    const cleanedText = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleanedText);
+    
+    const timeMap = { 'once daily': ['08:00'], 'twice daily': ['08:00', '20:00'], 'thrice daily': ['08:00', '14:00', '20:00'], 'every 8 hours': ['08:00', '16:00', '00:00'], 'at bedtime': ['22:00'], 'with meals': ['08:00', '13:00', '19:00'] };
+    finalMedicines = (parsed.medicines || []).map(m => ({ ...m, times: m.times?.length ? m.times : timeMap[m.frequency?.toLowerCase()] || ['08:00'] }));
+  } catch (e) {
+    console.error('parsePrescriptionWithGroq AI parse failed, using smart text parser fallback:', e.message);
+    finalMedicines = parseMedicinesFromRawText(textToParse);
   }
 
-  // Fallback if Vision was not used or failed
-  if (!finalMedicines.length) {
-    try {
-      const text = await groqChat([{ role: 'user', content: prompt + `\nText:\n${textToParse}` }], 'Clinical pharmacist AI. Return raw JSON only.', 2048);
-      const cleanedText = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(cleanedText);
-      if (parsed.medicines?.length) finalMedicines = parsed.medicines;
-    } catch (e) {
-      finalMedicines = parseMedicinesFromRawText(textToParse);
-    }
-  }
-
-  // Enrich with clinical info
+  // Enrich medicines with accurate clinical uses and negative symptoms via AI
   finalMedicines = await enrichMedicinesWithClinicalInfo(finalMedicines);
-
-  const timeMap = {
-    'once daily': ['08:00'],
-    'twice daily': ['08:00', '20:00'],
-    'thrice daily': ['08:00', '14:00', '20:00'],
-    'at bedtime': ['22:00'],
-  };
-
-  finalMedicines = finalMedicines.map(m => ({
-    ...m,
-    times: m.times?.length ? m.times : timeMap[m.frequency?.toLowerCase()] || ['08:00'],
-  }));
 
   return {
     ocrText: ocrText || textToParse,
-    medicines: finalMedicines.length ? finalMedicines : [{ name: 'Prescription Item', dosage: '1', unit: 'tablets', frequency: 'once daily', times: ['08:00'], duration: '30 days', uses: 'Therapeutic management', negativeSymptoms: 'Mild side effects' }],
+    medicines: finalMedicines.length ? finalMedicines : [{ name: 'Prescription Item', dosage: '1', unit: 'tablets', frequency: 'once daily', times: ['08:00'], duration: '30 days', uses: 'Therapeutic management', negativeSymptoms: 'Mild side effects' }]
   };
 };
 
