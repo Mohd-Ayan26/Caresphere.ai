@@ -18,11 +18,11 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB error:', err);
+      console.error(' MongoDB error:', err);
     });
 
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error.message);
+    console.error(' MongoDB connection failed:', error.message);
     process.exit(1);
   }
 };
