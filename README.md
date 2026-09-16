@@ -22,7 +22,7 @@
 
 CareSphere AI is a full-stack MERN healthcare application providing:
 - **8 Health Modules** — Medicine, Wellness, Nutrition, Emergency, Health Diary, Gamification, AI Chat, Analytics
-- **AI Integration** — Groq LLaMA3 (chatbot, medicine parsing, diet plans), HuggingFace (emotion analysis)
+- **AI Integration** — Groq LLaMA3 (chatbot, medicine parsing, diet plans,AI summary), HuggingFace (emotion analysis)
 - **Real-Time** — Socket.io emergency alerts, live notifications, caregiver updates
 - **Voice Enabled** — Web Speech API input + SpeechSynthesis output
 - **Accessible** — High contrast, large font, screen reader, keyboard navigation
