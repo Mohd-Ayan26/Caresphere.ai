@@ -1,6 +1,7 @@
 # 🏥 CareSphere AI — Full-Stack Healthcare Platform
 
 > A comprehensive AI-powered healthcare ecosystem for elderly people and persons with disabilities.
+> Improving health every day
 
 ---
 
