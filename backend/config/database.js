@@ -1,4 +1,5 @@
 // config/database.js — MongoDB Atlas connection with retry logic
+//using mongoDB as database
 const mongoose = require('mongoose');
 
 const connectDB = async () => {
