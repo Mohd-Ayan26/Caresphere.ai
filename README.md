@@ -2,6 +2,7 @@
 
 > A comprehensive AI-powered healthcare ecosystem for elderly people and persons with disabilities.
 > Improving health every day
+> Health is first priority
 
 ---
 
