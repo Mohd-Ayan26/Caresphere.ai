@@ -11,10 +11,11 @@ const connectDB = async () => {
 
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, options);
-    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+
+    console.log(` MongoDB Connected: ${conn.connection.host} Hello BUDDY`);
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️  MongoDB disconnected. Attempting reconnect...');
+      console.warn(' MongoDB disconnected. Attempting reconnect.....');
     });
 
     mongoose.connection.on('error', (err) => {
