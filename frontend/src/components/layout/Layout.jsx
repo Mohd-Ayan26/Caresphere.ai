@@ -16,7 +16,7 @@ import {
 } from '../../store/slices/uiSlice';
 import { getSocket } from '../../services/socket';
 
-// Live Global Emergency Listener & Popup Modal
+// Live Global Emergency Listener & Popup Modal (Caregiver Only)
 function GlobalEmergencyListener({ user }) {
   const [activeSOS, setActiveSOS] = useState(null);
 
@@ -25,6 +25,9 @@ function GlobalEmergencyListener({ user }) {
     if (!socket || !user) return;
 
     const handleSOS = (data) => {
+      // DO NOT show popup on the user's own screen who triggered the SOS
+      if (data.userId === user._id) return;
+
       try {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
         audio.play().catch(() => {});
@@ -32,16 +35,19 @@ function GlobalEmergencyListener({ user }) {
       setActiveSOS(data);
     };
 
-    user.linkedPatients?.forEach((patientId) => {
-      socket.on(`emergency:${patientId}`, handleSOS);
+    // Extract string IDs safely whether populated as objects or IDs
+    const patientIds = (user.linkedPatients || []).map(p => typeof p === 'object' ? p._id : p).filter(Boolean);
+    const caregiverIds = (user.linkedCaregivers || []).map(c => typeof c === 'object' ? c._id : c).filter(Boolean);
+    const allLinkedIds = Array.from(new Set([...patientIds, ...caregiverIds]));
+
+    allLinkedIds.forEach((id) => {
+      socket.on(`emergency:${id}`, handleSOS);
     });
-    socket.on(`emergency:${user._id}`, handleSOS);
 
     return () => {
-      user.linkedPatients?.forEach((patientId) => {
-        socket.off(`emergency:${patientId}`, handleSOS);
+      allLinkedIds.forEach((id) => {
+        socket.off(`emergency:${id}`, handleSOS);
       });
-      socket.off(`emergency:${user._id}`, handleSOS);
     };
   }, [user]);
 
