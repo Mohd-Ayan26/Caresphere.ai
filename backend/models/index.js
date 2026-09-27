@@ -11,7 +11,7 @@ const userSchema = new Schema({
   email:       { type: String, required: true, unique: true, lowercase: true, trim: true },
   password:    { type: String, required: true, minlength: 6, select: false },
   phone:       { type: String, trim: true },
-  role:        { type: String, enum: ['elderly', 'caregiver', 'doctor', 'admin'], default: 'elderly' },
+  role:        { type: String, enum: ['user', 'elderly', 'caregiver', 'doctor', 'admin'], default: 'user' },
   avatar:      { type: String, default: '' },
   dateOfBirth: { type: Date },
   gender:      { type: String, enum: ['male', 'female', 'other', ''] },

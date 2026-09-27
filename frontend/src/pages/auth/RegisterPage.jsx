@@ -12,7 +12,7 @@ export default function RegisterPage() {
   const { loading } = useSelector(s => s.auth);
   const [show, setShow] = useState(false);
   const [form, setForm] = useState({
-    name: '', email: '', password: '', phone: '', role: 'elderly',
+    name: '', email: '', password: '', phone: '', role: 'user',
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));

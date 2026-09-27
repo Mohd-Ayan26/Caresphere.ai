@@ -98,12 +98,13 @@ exports.linkCaregiver = asyncHandler(async (req, res) => {
   const { caregiverEmail, permissions } = req.body;
   if (!caregiverEmail) throw createError('Caregiver email is required.');
 
-  const caregiver = await User.findOne({ email: caregiverEmail.toLowerCase(), role: 'caregiver' });
-  if (!caregiver) throw createError('Caregiver not found with this email.', 404);
-  if (caregiver._id.equals(req.user._id)) throw createError('Cannot link yourself.');
+  // Find ANY registered user by email
+  const caregiver = await User.findOne({ email: caregiverEmail.toLowerCase() });
+  if (!caregiver) throw createError('No registered user found with this email.', 404);
+  if (caregiver._id.equals(req.user._id)) throw createError('You cannot link yourself as your caregiver.', 400);
 
   const existing = await CaregiverLink.findOne({ caregiverId: caregiver._id, patientId: req.user._id });
-  if (existing) throw createError('Caregiver already linked.', 409);
+  if (existing) throw createError('This user is already linked as your caregiver.', 409);
 
   const link = await CaregiverLink.create({
     caregiverId: caregiver._id,
@@ -111,7 +112,7 @@ exports.linkCaregiver = asyncHandler(async (req, res) => {
     permissions: permissions || {},
   });
 
-  // Update both users
+  // Update linked user arrays for both accounts
   await User.findByIdAndUpdate(req.user._id, { $addToSet: { linkedCaregivers: caregiver._id } });
   await User.findByIdAndUpdate(caregiver._id, { $addToSet: { linkedPatients: req.user._id } });
 
