@@ -1,5 +1,5 @@
 // src/components/layout/Layout.jsx — Professional, Clean Enterprise Layout
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,13 +7,100 @@ import {
   LayoutDashboard, Pill, Heart, Salad, AlertTriangle,
   BookHeart, Gamepad2, Bot, User, LogOut, Bell,
   Menu, X, Sun, Moon, ZoomIn, Contrast, Volume2, VolumeX,
-  ChevronRight, Wind, Brain, Activity,
+  ChevronRight, Wind, Brain, Activity, Navigation,
 } from 'lucide-react';
 import { logout } from '../../store/slices/authSlice';
 import {
   toggleSidebar, closeSidebar, toggleDarkMode,
   toggleHighContrast, toggleLargeFont, toggleVoice, markAllRead,
 } from '../../store/slices/uiSlice';
+import { getSocket } from '../../services/socket';
+
+// Live Global Emergency Listener & Popup Modal
+function GlobalEmergencyListener({ user }) {
+  const [activeSOS, setActiveSOS] = useState(null);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !user) return;
+
+    const handleSOS = (data) => {
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(() => {});
+      } catch (e) {}
+      setActiveSOS(data);
+    };
+
+    user.linkedPatients?.forEach((patientId) => {
+      socket.on(`emergency:${patientId}`, handleSOS);
+    });
+    socket.on(`emergency:${user._id}`, handleSOS);
+
+    return () => {
+      user.linkedPatients?.forEach((patientId) => {
+        socket.off(`emergency:${patientId}`, handleSOS);
+      });
+      socket.off(`emergency:${user._id}`, handleSOS);
+    };
+  }, [user]);
+
+  if (!activeSOS) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-rose-950/80 backdrop-blur-md animate-pulse">
+      <div className="bg-white dark:bg-slate-900 border-2 border-rose-600 rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-rose-100 dark:border-rose-900/50">
+          <div className="flex items-center gap-2.5 text-rose-600">
+            <div className="w-10 h-10 bg-rose-600 text-white rounded-xl flex items-center justify-center shadow-md animate-bounce">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white">🚨 EMERGENCY SOS ALERT!</h2>
+              <p className="text-xs text-rose-600 font-semibold">Immediate Assistance Requested</p>
+            </div>
+          </div>
+          <button onClick={() => setActiveSOS(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl space-y-2">
+          <p className="text-xs text-slate-700 dark:text-slate-300">
+            <strong>Message:</strong> {activeSOS.message || 'Patient pressed the emergency SOS button!'}
+          </p>
+          {activeSOS.location && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
+              <Navigation className="w-4 h-4" />
+              <span>
+                Coordinates: {activeSOS.location.lat?.toFixed(4)}, {activeSOS.location.lng?.toFixed(4)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          {activeSOS.location && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${activeSOS.location.lat},${activeSOS.location.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md"
+            >
+              <Navigation className="w-4 h-4" /> Get Directions
+            </a>
+          )}
+          <button
+            onClick={() => setActiveSOS(null)}
+            className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center"
+          >
+            Acknowledge / Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const navItems = [
   { path: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
@@ -41,6 +128,9 @@ export default function Layout({ children }) {
 
   return (
     <div className={`flex h-screen overflow-hidden ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      {/* Live SOS Emergency Listener */}
+      <GlobalEmergencyListener user={user} />
+
       {/* Mobile overlay */}
       <AnimatePresence>
         {sidebarOpen && (
