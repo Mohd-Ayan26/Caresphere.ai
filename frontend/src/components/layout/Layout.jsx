@@ -25,73 +25,50 @@ function GlobalEmergencyListener({ user }) {
     if (!socket || !user) return;
 
     const handleSOS = (data) => {
-      // DO NOT show popup on the user's own screen who triggered the SOS
       if (data.userId === user._id) return;
-
-      try {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-        audio.play().catch(() => {});
-      } catch (e) {}
+      new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(() => {});
       setActiveSOS(data);
     };
 
-    // Extract string IDs safely whether populated as objects or IDs
-    const patientIds = (user.linkedPatients || []).map(p => typeof p === 'object' ? p._id : p).filter(Boolean);
-    const caregiverIds = (user.linkedCaregivers || []).map(c => typeof c === 'object' ? c._id : c).filter(Boolean);
-    const allLinkedIds = Array.from(new Set([...patientIds, ...caregiverIds]));
+    const ids = Array.from(new Set([
+      ...(user.linkedPatients || []),
+      ...(user.linkedCaregivers || [])
+    ])).map(p => typeof p === 'object' ? p._id : p).filter(Boolean);
 
-    allLinkedIds.forEach((id) => {
-      socket.on(`emergency:${id}`, handleSOS);
-    });
-
-    return () => {
-      allLinkedIds.forEach((id) => {
-        socket.off(`emergency:${id}`, handleSOS);
-      });
-    };
+    ids.forEach(id => socket.on(`emergency:${id}`, handleSOS));
+    return () => ids.forEach(id => socket.off(`emergency:${id}`, handleSOS));
   }, [user]);
 
   if (!activeSOS) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-rose-950/80 backdrop-blur-md animate-pulse">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-rose-950/80 backdrop-blur-md">
       <div className="bg-white dark:bg-slate-900 border-2 border-rose-600 rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-rose-100 dark:border-rose-900/50">
-          <div className="flex items-center gap-2.5 text-rose-600">
-            <div className="w-10 h-10 bg-rose-600 text-white rounded-xl flex items-center justify-center shadow-md animate-bounce">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-base font-extrabold text-slate-900 dark:text-white">🚨 EMERGENCY SOS ALERT!</h2>
-              <p className="text-xs text-rose-600 font-semibold">Immediate Assistance Requested</p>
-            </div>
+          <div className="flex items-center gap-2.5 text-rose-600 font-bold text-sm">
+            <AlertTriangle className="w-6 h-6 animate-bounce" /> 🚨 EMERGENCY SOS ALERT!
           </div>
-          <button onClick={() => setActiveSOS(null)} className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <button onClick={() => setActiveSOS(null)} className="p-1 text-slate-400 hover:text-slate-600">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl space-y-2">
-          <p className="text-xs text-slate-700 dark:text-slate-300">
-            <strong>Message:</strong> {activeSOS.message || 'Patient pressed the emergency SOS button!'}
-          </p>
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl space-y-1 text-xs">
+          <p><strong>Message:</strong> {activeSOS.message || 'Patient triggered Emergency SOS!'}</p>
           {activeSOS.location && (
-            <div className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400">
-              <Navigation className="w-4 h-4" />
-              <span>
-                Coordinates: {activeSOS.location.lat?.toFixed(4)}, {activeSOS.location.lng?.toFixed(4)}
-              </span>
-            </div>
+            <p className="text-blue-600 dark:text-blue-400 font-semibold mt-1">
+              📍 Location: {activeSOS.location.lat?.toFixed(4)}, {activeSOS.location.lng?.toFixed(4)}
+            </p>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="grid grid-cols-2 gap-3 pt-1">
           {activeSOS.location && (
             <a
-              href={`https://www.google.com/maps/search/?api=1&query=${activeSOS.location.lat},${activeSOS.location.lng}`}
+              href={`https://maps.google.com/?q=${activeSOS.location.lat},${activeSOS.location.lng}`}
               target="_blank"
               rel="noreferrer"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-md"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2"
             >
               <Navigation className="w-4 h-4" /> Get Directions
             </a>
@@ -100,7 +77,7 @@ function GlobalEmergencyListener({ user }) {
             onClick={() => setActiveSOS(null)}
             className="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center"
           >
-            Acknowledge / Close
+            Acknowledge
           </button>
         </div>
       </div>
