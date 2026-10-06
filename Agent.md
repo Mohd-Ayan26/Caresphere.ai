@@ -49,3 +49,4 @@ Before finishing:
 - Ensure ESLint/TypeScript rules are followed.
 - Ensure existing design tokens and global components are used.
 - Remove unnecessary code.
+- Always follow guideline
