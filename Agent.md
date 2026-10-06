@@ -50,3 +50,4 @@ Before finishing:
 - Ensure existing design tokens and global components are used.
 - Remove unnecessary code.
 - Always follow guideline
+- Create reusable component
