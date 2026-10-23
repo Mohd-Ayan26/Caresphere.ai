@@ -181,7 +181,7 @@ cp .env.example .env
 ```bash
 # Terminal 1 — Backend
 cd backend
-npm run dev      # starts on port 5000
+npm run dev      # starts on port 5000---
 
 # Terminal 2 — Frontend
 cd frontend
