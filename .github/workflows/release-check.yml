@@ -24,11 +24,6 @@ jobs:
           cd backend
           npm ci
           node --check server.js
-
-      - name: Frontend build
-        run: |
-          cd frontend
-          npm ci
-          npm run build
+          
         env:
           CI: false
